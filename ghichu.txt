@@ -1,0 +1,9 @@
+1- Tạo tập tin package.json: npm init -y
+2- Cài đặt gói mới: npm i <gói> --s
+3- npm i -> Cài đặt các gói trong tập tin package.json
+=================================================================
+
+Cài đặt thư viện mongodb cho ứng dụng node
+    Cửa sổ TERMINAT: npm i mongodb --s
+
+  
