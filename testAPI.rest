@@ -1,8 +1,10 @@
-GET http://localhost:8080/dsTivi
+GET  https://.herokuapp.com/dsTivi
 ####
-GET http://localhost:8080/Cuahang
+GET http://localhost:8080/dsMathang
 ###
-GET http://localhost:8080/dsHocsinh
+GET http://localhost:8080/dsTivi
+###
+GET http://localhost:8080/dsDienthoai
 ### Test Img
 GET  http://localhost:8080/IPHONE_1.png
 ###
@@ -12,10 +14,10 @@ POST http://localhost:8080/ThemNguoidung
 Content-Type: application/json
 
 {
-    "Ten": "Nguyễn Anh Tuấn",
-    "Ma_so": "QL_3",
-    "Ten_Dang_nhap": "natuan",
-    "Mat_khau": "tuan010542",
+    "Ten": "Đặng Phương Nam",
+    "Ma_so": "QL_99",
+    "Ten_Dang_nhap": "nam123",
+    "Mat_khau": "nam123",
     "Nhom_Nguoi_dung": {
         "Ten": "Nhân viên Quản trị",
         "Ma_so": "QUAN_TRI"
@@ -26,10 +28,10 @@ POST http://localhost:8080/SuaNguoidung
 Content-Type: application/json
 
 {
-    "Ten": "Nguyễn Anh Tài",
-    "Ma_so": "QL_3",
-    "Ten_Dang_nhap": "natai",
-    "Mat_khau": "natai"
+    "Ten": "Dang Phuong Nam",
+    "Ma_so": "QL_99",
+    "Ten_Dang_nhap": "nam123",
+    "Mat_khau": "nam123"
     
 }
 ###
@@ -38,4 +40,21 @@ Content-Type: application/json
 
 {
     "Ma_so": "QL_99"
+}
+###
+POST  http://localhost:8080/SendMail
+Content-Type: application/json
+
+{
+    "subject":"Báo giá Iphone 14",
+    "body":"<b>Họ tên:</b> Nguyễn Anh Tuấn <br> Email: natuant3h@gmail.com <hr> Shop ơi cho tôi hỏi giá IPHONE 14 ???"
+}
+
+###
+POST http://localhost:8080/SMS
+Content-Type: :application/json
+
+{
+    "so_dien_thoai":"+84....",
+    "noi_dung": "content ..."
 }

@@ -1,7 +1,9 @@
 const mong_db = require("mongodb");
 const MongoClient = mong_db.MongoClient;
-const uri = "mongodb+srv://natuan:tuan010542@javascript.ogcl8.mongodb.net/?retryWrites=true&w=majority";
-const dbName = "js275";
+const uri = "mongodb://nam:xxx@ac-wt3wx5x-shard-00-00.mhwkc5q.mongodb.net:27017,ac-wt3wx5x-shard-00-01.mhwkc5q.mongodb.net:27017,ac-wt3wx5x-shard-00-02.mhwkc5q.mongodb.net:27017/?replicaSet=atlas-r3nf95-shard-0&ssl=true&authSource=admin";
+
+//mongodb+srv://nam:<password>@cluster0.mhwkc5q.mongodb.net/
+const dbName = "js276";
 
 class mongoDB{
     getAll(collection_name,filter={}){

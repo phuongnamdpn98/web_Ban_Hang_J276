@@ -6,7 +6,10 @@ const port = normalizePort(process.env.PORT || 8080);
 const fs = require("fs");
 // Khai báo thư viện mongoDB
 const db = require("./mongoDB");
-
+// Khai báo thư viện SendMail
+const sendMail = require("./sendMail");
+// Khai báo thư viện SMS
+const sms = require('./SMS');
 
 // Tạo dịch vụ:
 /*
@@ -33,7 +36,7 @@ const dich_vu = http.createServer((req, res) => {
                 res.end(JSON.stringify(err));
             })
         } else if (url == "/dsDienthoai") {
-            db.getAll("mobile").then(result => {
+            db.getAll("phone").then(result => {
                 let kq = JSON.stringify(result)
                 res.writeHead(200, { "Content-Type": "text/json;charset=utf-8" });
                 res.end(kq);
@@ -41,7 +44,7 @@ const dich_vu = http.createServer((req, res) => {
                 res.end(JSON.stringify(err));
             })
         } else if (url == "/dsHocsinh") {
-            db.getAll("student").then(result => {
+            db.getAll("hocsinh").then(result => {
                 let kq = JSON.stringify(result)
                 res.writeHead(200, { "Content-Type": "text/json;charset=utf-8" });
                 res.end(kq);
@@ -49,7 +52,7 @@ const dich_vu = http.createServer((req, res) => {
                 res.end(JSON.stringify(err));
             })
         } else if (url == "/dsMathang") {
-            db.getAll("food").then(result => {
+            db.getAll("matHang").then(result => {
                 let kq = JSON.stringify(result)
                 res.writeHead(200, { "Content-Type": "text/json;charset=utf-8" });
                 res.end(kq);
@@ -94,7 +97,367 @@ const dich_vu = http.createServer((req, res) => {
             noi_dung_nhan += data;
         })
         //////////////////////////////////////////////////////////////
-        if (url == "/ThemNguoidung") {
+        if (url == "/Dangnhap") {
+            req.on("end", () => {
+                let ket_qua = {
+                    "Noi_dung": true
+                }
+                let user = JSON.parse(noi_dung_nhan);
+                let dieukien = {
+                    $and: [
+                        { "Ten_Dang_nhap": user.Ten_Dang_nhap },
+                        { "Mat_khau": user.Mat_khau }
+                    ]
+                }
+                db.getOne("user", dieukien).then(result => {
+                    console.log(result)
+                    ket_qua.Noi_dung = {
+                        "Ho_ten": result.Ten,
+                        "Nhom": {
+                            "Ma_so": result.Nhom_Nguoi_dung.Ma_so,
+                            "Ten": result.Nhom_Nguoi_dung.Ten
+                        }
+                    };
+                    res.writeHead(200, { "Content-Type": "text/json;charset=utf-8" });
+                    res.end(JSON.stringify(ket_qua));
+
+                }).catch(err => {
+                    console.log(err);
+                    ket_qua.Noi_dung = false;
+                    res.writeHead(200, { "Content-Type": "text/json;charset=utf-8" });
+                    res.end(JSON.stringify(ket_qua));
+                })
+            })
+        } else if (url == "/Dathang") {
+            req.on('end', function () {
+                let dsDathang = JSON.parse(noi_dung_nhan);
+                let ket_qua = { "Noi_dung": [] };
+                dsDathang.forEach(item => {
+                    let filter = {
+                        "Ma_so": item.key
+
+                    }
+                    let nhom = item.nhom;
+                    let collectionName = "matHang";
+                    if (nhom == 1) {
+                        collectionName = "tivi";
+                    } else if (nhom == 2) {
+                        collectionName = "phone"
+                    }
+                    db.getOne(collectionName, filter).then(result => {
+                        //result.Danh_sach_Phieu_Ban.push(item.dathang);
+
+                        // Update
+                        let capnhat = {}
+                        
+                        if (collectionName == "matHang") {
+                            result.Danh_sach_Ban_hang.push(item.dathang);
+
+                            capnhat = {
+                                $set: { Danh_sach_Ban_hang: result.Danh_sach_Ban_hang }
+                            }
+                        } else {
+                            result.Danh_sach_Phieu_Ban.push(item.dathang);
+                            capnhat = {
+                                $set: { Danh_sach_Phieu_Ban: result.Danh_sach_Phieu_Ban }
+                            }
+                        }
+                        let obj = {
+                            "Ma_so": result.Ma_so,
+                            "Update": true
+                        }
+                        db.updateOne(collectionName, filter, capnhat).then(result => {
+                            if (result.modifiedCount == 0) {
+                                obj.Update = false
+
+                            }
+                            ket_qua.Noi_dung.push(obj);
+                            //console.log(ket_qua.Noi_dung)
+                            if (ket_qua.Noi_dung.length == dsDathang.length) {
+                                res.end(JSON.stringify(ket_qua));
+                            }
+                        }).catch(err => {
+                            console.log(err)
+                        })
+                    }).catch(err => {
+                        console.log(err);
+                    })
+
+                })
+            })
+
+        } else if (url == "/SuaDienthoai") { // thêm - sửa - xóa điện thoại
+            req.on('end', function () {
+                let mobile = JSON.parse(noi_dung_nhan);
+                let ket_qua = { "Noi_dung": true };
+                db.updateOne("phone", mobile.condition, mobile.update).then(result => {
+                    console.log(result);
+                    res.writeHead(200, { "Content-Type": "text/json;charset=utf-8" });
+                    res.end(JSON.stringify(ket_qua));
+                }).catch(err => {
+                    console.log(err);
+                    ket_qua.Noi_dung = false;
+                    res.writeHead(200, { "Content-Type": "text/json;charset=utf-8" });
+                    res.end(JSON.stringify(ket_qua))
+                })
+            })
+        } else if (url == "/ThemDienthoai") {
+            req.on('end', function () {
+                let mobile = JSON.parse(noi_dung_nhan);
+                let ket_qua = { "Noi_dung": true };
+                db.insertOne("phone", mobile).then(result => {
+                    console.log(result);
+                    res.writeHead(200, { "Content-Type": "text/json;charset=utf-8" });
+                    res.end(JSON.stringify(ket_qua));
+                }).catch(err => {
+                    console.log(err);
+                    ket_qua.Noi_dung = false;
+                    res.writeHead(200, { "Content-Type": "text/json;charset=utf-8" });
+                    res.end(JSON.stringify(ket_qua));
+                })
+            })
+        } else if (url == "/ImagesDienthoai") {
+            req.on('end', function () {
+                let img = JSON.parse(noi_dung_nhan);
+                let Ket_qua = { "Noi_dung": true };
+                // upload img in images ------------------------------
+
+                let kq = saveMedia(img.name, img.src)
+                if (kq == "OK") {
+                    res.writeHead(200, { "Content-Type": "text/json; charset=utf-8" });
+                    res.end(JSON.stringify(Ket_qua));
+                } else {
+                    Ket_qua.Noi_dung = false
+                    res.writeHead(200, { "Content-Type": "text/json; charset=utf-8" });
+                    res.end(JSON.stringify(Ket_qua));
+                }
+
+                // upload img host cloudinary ------------------------------
+                /*
+                imgCloud.UPLOAD_CLOUDINARY(img.name,img.src).then(result=>{
+                    console.log(result);
+                    res.end(JSON.stringify(Ket_qua));
+
+                }).catch(err=>{
+                    Ket_qua.Noi_dung=false
+                    res.end(JSON.stringify(Ket_qua))
+                })
+                */
+            })
+
+        } else if (url == "/XoaDienthoai") {
+            req.on('end', function () {
+                let mobile = JSON.parse(noi_dung_nhan);
+                let ket_qua = { "Noi_dung": true };
+                db.deleteOne("phone", mobile).then(result => {
+                    console.log(result);
+                    res.writeHead(200, { "Content-Type": "text/json;charset=utf-8" });
+                    res.end(JSON.stringify(ket_qua));
+                }).catch(err => {
+                    console.log(err);
+                    ket_qua.Noi_dung = false;
+                    res.writeHead(200, { "Content-Type": "text/json;charset=utf-8" });
+                    res.end(JSON.stringify(ket_qua))
+                })
+
+            })
+
+        } else if (url == "/SuaTivi") { // thêm - sửa - xóa tivi
+            req.on('end', function () {
+                let tivi = JSON.parse(noi_dung_nhan);
+                let ket_qua = { "Noi_dung": true };
+                db.updateOne("tivi", tivi.condition, tivi.update).then(result => {
+                    console.log(result);
+                    res.writeHead(200, { "Content-Type": "text/json;charset=utf-8" });
+                    res.end(JSON.stringify(ket_qua));
+                }).catch(err => {
+                    console.log(err);
+                    ket_qua.Noi_dung = false;
+                    res.writeHead(200, { "Content-Type": "text/json;charset=utf-8" });
+                    res.end(JSON.stringify(ket_qua))
+                })
+            })
+        } else if (url == "/ThemTivi") {
+            req.on('end', function () {
+                let tivi = JSON.parse(noi_dung_nhan);
+                let ket_qua = { "Noi_dung": true };
+                db.insertOne("tivi", tivi).then(result => {
+                    console.log(result);
+                    res.writeHead(200, { "Content-Type": "text/json;charset=utf-8" });
+                    res.end(JSON.stringify(ket_qua));
+                }).catch(err => {
+                    console.log(err);
+                    ket_qua.Noi_dung = false;
+                    res.writeHead(200, { "Content-Type": "text/json;charset=utf-8" });
+                    res.end(JSON.stringify(ket_qua));
+                })
+            })
+        } else if (url == "/ImagesTivi") {
+            req.on('end', function () {
+                let img = JSON.parse(noi_dung_nhan);
+                let Ket_qua = { "Noi_dung": true };
+                // upload img in images ------------------------------
+
+                let kq = saveMedia(img.name, img.src)
+                if (kq == "OK") {
+                    res.writeHead(200, { "Content-Type": "text/json; charset=utf-8" });
+                    res.end(JSON.stringify(Ket_qua));
+                } else {
+                    Ket_qua.Noi_dung = false
+                    res.writeHead(200, { "Content-Type": "text/json; charset=utf-8" });
+                    res.end(JSON.stringify(Ket_qua));
+                }
+
+                // upload img host cloudinary ------------------------------
+                /*
+                imgCloud.UPLOAD_CLOUDINARY(img.name,img.src).then(result=>{
+                    console.log(result);
+                    res.end(JSON.stringify(Ket_qua));
+
+                }).catch(err=>{
+                    Ket_qua.Noi_dung=false
+                    res.end(JSON.stringify(Ket_qua))
+                })
+                */
+            })
+
+        } else if (url == "/XoaTivi") {
+            req.on('end', function () {
+                let tivi = JSON.parse(noi_dung_nhan);
+                let ket_qua = { "Noi_dung": true };
+                db.deleteOne("tivi", tivi).then(result => {
+                    console.log(result);
+                    res.writeHead(200, { "Content-Type": "text/json;charset=utf-8" });
+                    res.end(JSON.stringify(ket_qua));
+                }).catch(err => {
+                    console.log(err);
+                    ket_qua.Noi_dung = false;
+                    res.writeHead(200, { "Content-Type": "text/json;charset=utf-8" });
+                    res.end(JSON.stringify(ket_qua))
+                })
+
+            })
+
+        } else if (url == "/SuaFood") { // thêm - sửa - xóa Food
+            req.on('end', function () {
+                let food = JSON.parse(noi_dung_nhan);
+                let ket_qua = { "Noi_dung": true };
+                db.updateOne("matHang", food.condition, food.update).then(result => {
+                    console.log(result);
+                    res.writeHead(200, { "Content-Type": "text/json;charset=utf-8" });
+                    res.end(JSON.stringify(ket_qua));
+                }).catch(err => {
+                    console.log(err);
+                    ket_qua.Noi_dung = false;
+                    res.writeHead(200, { "Content-Type": "text/json;charset=utf-8" });
+                    res.end(JSON.stringify(ket_qua))
+                })
+            })
+        } else if (url == "/ThemFood") {
+            req.on('end', function () {
+                let food = JSON.parse(noi_dung_nhan);
+                let ket_qua = { "Noi_dung": true };
+                db.insertOne("matHang", food).then(result => {
+                    console.log(result);
+                    res.writeHead(200, { "Content-Type": "text/json;charset=utf-8" });
+                    res.end(JSON.stringify(ket_qua));
+                }).catch(err => {
+                    console.log(err);
+                    ket_qua.Noi_dung = false;
+                    res.writeHead(200, { "Content-Type": "text/json;charset=utf-8" });
+                    res.end(JSON.stringify(ket_qua));
+                })
+            })
+        } else if (url == "/ImagesFood") {
+            req.on('end', function () {
+                let img = JSON.parse(noi_dung_nhan);
+                let Ket_qua = { "Noi_dung": true };
+                // upload img in images ------------------------------
+
+                let kq = saveMedia(img.name, img.src)
+                if (kq == "OK") {
+                    res.writeHead(200, { "Content-Type": "text/json; charset=utf-8" });
+                    res.end(JSON.stringify(Ket_qua));
+                } else {
+                    Ket_qua.Noi_dung = false
+                    res.writeHead(200, { "Content-Type": "text/json; charset=utf-8" });
+                    res.end(JSON.stringify(Ket_qua));
+                }
+
+                // upload img host cloudinary ------------------------------
+                /*
+                imgCloud.UPLOAD_CLOUDINARY(img.name,img.src).then(result=>{
+                    console.log(result);
+                    res.end(JSON.stringify(Ket_qua));
+
+                }).catch(err=>{
+                    Ket_qua.Noi_dung=false
+                    res.end(JSON.stringify(Ket_qua))
+                })
+                */
+            })
+
+        } else if (url == "/XoaFood") {
+            req.on('end', function () {
+                let food = JSON.parse(noi_dung_nhan);
+                let ket_qua = { "Noi_dung": true };
+                db.deleteOne("matHang", food).then(result => {
+                    console.log(result);
+                    res.writeHead(200, { "Content-Type": "text/json;charset=utf-8" });
+                    res.end(JSON.stringify(ket_qua));
+                }).catch(err => {
+                    console.log(err);
+                    ket_qua.Noi_dung = false;
+                    res.writeHead(200, { "Content-Type": "text/json;charset=utf-8" });
+                    res.end(JSON.stringify(ket_qua))
+                })
+
+            })
+
+        } else if (url == "/SendMail") {
+            req.on("end", () => {
+                let kq = {
+                    "noi_dung": true
+                }
+                let info = JSON.parse(noi_dung_nhan);
+
+                let from = `phuongnamdpn98@gmail.com`;
+                let to = `phuongnamdpn98@gmail.com`;
+                let subject = info.subject;
+                let body = info.body;
+                sendMail.Goi_Thu_Lien_he(from, to, subject, body).then(result => {
+                    console.log(result)
+                    res.writeHead(200, { "Content-Type": "text/json;charset=utf-8" });
+                    res.end(JSON.stringify(kq));
+                }).catch(err => {
+                    console.log(err)
+                    kq.noi_dung = false;
+                    res.writeHead(200, { "Content-Type": "text/json;charset=utf-8" });
+                    res.end(JSON.stringify(kq));
+                })
+            })
+        } else if (url == "/SMS") {
+            req.on("end", () => {
+                let kq = {
+                    "noi_dung": true
+                }
+
+                let info = JSON.parse(noi_dung_nhan);
+                let so_dien_thoai = info.so_dien_thoai;
+                let noi_dung = info.noi_dung;
+
+                sms.Goi_Tin_nhan(so_dien_thoai, noi_dung).then(result => {
+                    console.log(result)
+                    res.writeHead(200, { "Content-Type": "text/json;charset=utf-8" });
+                    res.end(JSON.stringify(kq));
+                }).catch(err => {
+                    console.log(err)
+                    kq.noi_dung = false;
+                    res.writeHead(200, { "Content-Type": "text/json;charset=utf-8" });
+                    res.end(JSON.stringify(kq));
+                })
+            })
+        } else if (url == "/ThemNguoidung") {
             req.on("end", () => {
                 let kq = {
                     "noi_dung": true
@@ -189,4 +552,31 @@ function normalizePort(val) {
     }
 
     return false;
+}
+
+// Upload Media -----------------------------------------------------------------
+function decodeBase64Image(dataString) {
+    var matches = dataString.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/),
+        response = {};
+
+    if (matches.length !== 3) {
+        return new Error('Error ...');
+    }
+
+    response.type = matches[1];
+    response.data = new Buffer(matches[2], 'base64');
+
+    return response;
+}
+
+function saveMedia(Ten, Chuoi_nhi_phan) {
+    var Kq = "OK"
+    try {
+        var Nhi_phan = decodeBase64Image(Chuoi_nhi_phan);
+        var Duong_dan = "./images/" + Ten
+        fs.writeFileSync(Duong_dan, Nhi_phan.data);
+    } catch (Loi) {
+        Kq = Loi.toString()
+    }
+    return Kq
 }
